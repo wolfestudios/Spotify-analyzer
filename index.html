@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Spotify Playlist Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --surface2: #181818;
+    --border: #222;
+    --green: #1DB954;
+    --green-dim: #1aa34a22;
+    --text: #f0f0f0;
+    --muted: #666;
+    --muted2: #444;
+    --tag-bg: #1DB95415;
+    --tag-text: #1DB954;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  .app { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  header { margin-bottom: 2.5rem; }
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+  .logo-text { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  h1 span { color: var(--green); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; }
+
+  .auth-section { text-align: center; padding: 3rem 2rem; }
+  .auth-section p { color: var(--muted); font-size: 14px; margin-bottom: 1.5rem; line-height: 1.6; }
+  .btn-login { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #000; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px; padding: 14px 28px; border-radius: 50px; border: none; cursor: pointer; transition: transform 0.15s, opacity 0.15s; text-decoration: none; }
+  .btn-login:hover { opacity: 0.9; transform: scale(1.02); }
+  .btn-login svg { width: 20px; height: 20px; }
+
+  label { font-size: 12px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 8px; }
+  .input-row { display: flex; gap: 8px; }
+  input[type="text"] { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s; }
+  input[type="text"]:focus { border-color: var(--green); }
+  input[type="text"]::placeholder { color: var(--muted2); }
+
+  .btn { background: var(--green); color: #000; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; padding: 10px 18px; border-radius: var(--radius-sm); border: none; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--muted); background: var(--surface2); }
+
+  .playlist-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .playlist-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface2); transition: border-color 0.15s, background 0.15s; }
+  .playlist-item:hover { border-color: var(--muted2); }
+  .playlist-item.selected { border-color: var(--green); background: var(--green-dim); }
+  .playlist-thumb { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; background: var(--border); flex-shrink: 0; }
+  .playlist-thumb-ph { width: 42px; height: 42px; border-radius: 6px; background: var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+  .playlist-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .playlist-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 50px; font-size: 13px; cursor: pointer; background: var(--surface2); color: var(--text); transition: border-color 0.15s, background 0.15s; }
+  .chip input { width: 13px; height: 13px; accent-color: var(--green); cursor: pointer; }
+  .chip:has(input:checked) { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .metric { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+  .metric-label { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; }
+  .metric-val { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+
+  .artist-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 8px; transition: border-color 0.15s; }
+  .artist-card:hover { border-color: var(--muted2); }
+  .artist-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .artist-img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; }
+  .artist-img-ph { width: 46px; height: 46px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--green); flex-shrink: 0; }
+  .artist-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .artist-tracks { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .tag { font-size: 11px; padding: 3px 9px; border-radius: 50px; background: var(--tag-bg); color: var(--tag-text); font-family: 'DM Mono', monospace; border: 1px solid #1DB95430; }
+  .stats { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; min-width: 90px; }
+  .stat-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; }
+  .stat-val { font-size: 15px; font-weight: 600; }
+  .pop-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; }
+  .pop-fill { height: 3px; border-radius: 2px; background: var(--green); }
+
+  .status { font-size: 13px; color: var(--muted); padding: 8px 0; font-family: 'DM Mono', monospace; }
+  .error { color: #ff6b6b; font-size: 13px; padding: 10px 14px; background: #ff6b6b15; border: 1px solid #ff6b6b30; border-radius: var(--radius-sm); margin-top: 8px; }
+  .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
+  .section-title { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; }
+  .user-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .user-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .user-name { font-size: 13px; color: var(--muted); flex: 1; }
+  .logout { font-size: 12px; color: var(--muted); cursor: pointer; font-family: 'DM Mono', monospace; background: none; border: none; }
+  .logout:hover { color: var(--text); }
+
+  @media (max-width: 500px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><div class="logo-dot"></div><span class="logo-text">Spotify Analyzer</span></div>
+    <h1>Playlist <span>Explorer</span></h1>
+  </header>
+
+  <div id="app-content"></div>
+</div>
+
+<script>
+const CLIENT_ID = 'fe057f429cec42f3a1913d4487457ee7';
+const REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
+const SCOPES = 'playlist-read-public playlist-read-collaborative';
+
+let token = null;
+let selectedPlaylistId = null;
+let selectedPlaylistName = '';
+
+function $(id) { return document.getElementById(id); }
+function render(html) { $('app-content').innerHTML = html; }
+
+async function generateCodeVerifier() {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function generateCodeChallenge(verifier) {
+  const enc = new TextEncoder().encode(verifier);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function login() {
+  const verifier = await generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge: challenge
+  });
+  window.location = 'https://accounts.spotify.com/authorize?' + params.toString();
+}
+
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: verifier
+    })
+  });
+  const data = await resp.json();
+  if (data.access_token) {
+    token = data.access_token;
+    sessionStorage.setItem('spotify_token', token);
+    window.history.replaceState({}, '', window.location.pathname);
+    showMain();
+  } else {
+    showAuth('Could not authenticate. Please try again.');
+  }
+}
+
+async function spotifyFetch(url) {
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (r.status === 401) { token = null; sessionStorage.removeItem('spotify_token'); showAuth('Session expired. Please log in again.'); return null; }
+  return r.json();
+}
+
+function showAuth(msg) {
+  render(`<div class="card auth-section">
+    ${msg ? `<div class="error" style="margin-bottom:1.5rem;">${msg}</div>` : ''}
+    <p>Connect your Spotify account to search public playlists and explore artist info — genres, popularity, and followers.</p>
+    <button class="btn-login" onclick="login()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 11-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.622.622 0 01.207.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.52-.972c3.632-1.102 8.147-.568 11.233 1.328a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.793c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.612z"/></svg>
+      Connect with Spotify
+    </button>
+  </div>`);
+}
+
+async function showMain() {
+  const me = await spotifyFetch('https://api.spotify.com/v1/me');
+  if (!me) return;
+  render(`
+    <div class="user-bar">
+      <div class="user-dot"></div>
+      <span class="user-name">Connected as <strong>${me.display_name || me.id}</strong></span>
+      <button class="logout" onclick="logout()">disconnect</button>
+    </div>
+    <div class="card" id="search-card">
+      <div class="section-title">Search playlists</div>
+      <div class="input-row">
+        <input type="text" id="searchQuery" placeholder="e.g. 90s rock, chill vibes, workout metal..." onkeydown="if(event.key==='Enter') searchPlaylists()" />
+        <button class="btn" onclick="searchPlaylists()">Search</button>
+      </div>
+      <div id="playlistResults" class="playlist-list"></div>
+    </div>
+    <div id="analyzeSection" style="display:none;">
+      <div class="card">
+        <div class="section-title">Options</div>
+        <div class="filters">
+          <label class="chip"><input type="checkbox" id="chk-genre" checked> Genres</label>
+          <label class="chip"><input type="checkbox" id="chk-popularity" checked> Popularity</label>
+          <label class="chip"><input type="checkbox" id="chk-followers" checked> Followers</label>
+        </div>
+        <div class="divider"></div>
+        <div class="section-title">Filter by genre (optional)</div>
+        <div class="input-row">
+          <input type="text" id="genreFilter" placeholder="e.g. rock, metal, jazz (comma-separated)" />
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn" onclick="analyzePlaylist()">Analyze artists</button>
+        </div>
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+    <div id="error" style="display:none;" class="error"></div>
+    <div id="results"></div>
+  `);
+}
+
+function logout() {
+  token = null;
+  sessionStorage.removeItem('spotify_token');
+  showAuth();
+}
+
+function setStatus(msg) { const s = $('status'); if(s) s.textContent = msg; }
+function showError(msg) { const e = $('error'); if(e){ e.style.display='block'; e.textContent=msg; } }
+function clearError() { const e = $('error'); if(e) e.style.display='none'; }
+
+async function searchPlaylists() {
+  clearError();
+  $('results').innerHTML = '';
+  $('analyzeSection').style.display = 'none';
+  selectedPlaylistId = null;
+  const q = $('searchQuery').value.trim();
+  if (!q) { showError('Enter a search term first.'); return; }
+  setStatus('Searching...');
+  const data = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=playlist&limit=8`);
+  if (!data) return;
+  setStatus('');
+  const playlists = (data.playlists?.items || []).filter(Boolean);
+  if (!playlists.length) { showError('No playlists found. Try different keywords.'); return; }
+  const container = $('playlistResults');
+  container.innerHTML = '';
+  for (const p of playlists) {
+    const img = p.images?.length ? p.images[0].url : null;
+    const imgHtml = img ? `<img class="playlist-thumb" src="${img}" alt="" />` : `<div class="playlist-thumb-ph">♫</div>`;
+    const tracks = p.tracks?.total ?? '?';
+    const owner = p.owner?.display_name || '';
+    const div = document.createElement('div');
+    div.className = 'playlist-item';
+    div.innerHTML = `${imgHtml}<div class="playlist-info"><div class="playlist-name">${p.name}</div><div class="playlist-sub">${tracks} tracks${owner?' · '+owner:''}</div></div>`;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.playlist-item').forEach(i => i.classList.remove('selected'));
+      div.classList.add('selected');
+      selectedPlaylistId = p.id;
+      selectedPlaylistName = p.name;
+      $('analyzeSection').style.display = 'block';
+    });
+    container.appendChild(div);
+  }
+}
+
+async function analyzePlaylist() {
+  clearError();
+  $('results').innerHTML = '';
+  if (!selectedPlaylistId) { showError('Select a playlist first.'); return; }
+  setStatus('Loading tracks...');
+  let tracks = [];
+  let endpoint = `https://api.spotify.com/v1/playlists/${selectedPlaylistId}/tracks?limit=50&fields=next,items(track(name,artists(id,name)))`;
+  while (endpoint) {
+    const d = await spotifyFetch(endpoint);
+    if (!d) return;
+    tracks = tracks.concat(d.items || []);
+    endpoint = d.next || null;
+  }
+  const artistMap = {};
+  for (const item of tracks) {
+    if (!item.track) continue;
+    for (const a of item.track.artists) {
+      if (!artistMap[a.id]) artistMap[a.id] = { id: a.id, name: a.name, count: 0 };
+      artistMap[a.id].count++;
+    }
+  }
+  const artistIds = Object.keys(artistMap);
+  setStatus(`${tracks.length} tracks · ${artistIds.length} artists · loading details...`);
+  const chunks = [];
+  for (let i = 0; i < artistIds.length; i += 50) chunks.push(artistIds.slice(i, i+50));
+  let artistDetails = [];
+  for (const chunk of chunks) {
+    const d = await spotifyFetch(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`);
+    if (!d) return;
+    artistDetails = artistDetails.concat(d.artists || []);
+  }
+  const genreFilterRaw = $('genreFilter').value.trim().toLowerCase();
+  const genreFilters = genreFilterRaw ? genreFilterRaw.split(',').map(g=>g.trim()).filter(Boolean) : [];
+  let filtered = artistDetails.filter(Boolean);
+  if (genreFilters.length) {
+    filtered = filtered.filter(a => {
+      const genres = (a.genres||[]).map(g=>g.toLowerCase());
+      return genreFilters.some(f => genres.some(g=>g.includes(f)));
+    });
+  }
+  filtered.sort((a,b) => (artistMap[b.id]?.count||0) - (artistMap[a.id]?.count||0));
+  setStatus('');
+  if (genreFilters.length && !filtered.length) { showError(`No artists matched: "${genreFilterRaw}". Try broader terms.`); return; }
+  renderResults(filtered, artistMap, tracks.length, artistDetails.length);
+}
+
+function formatFollowers(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (n >= 1000) return Math.round(n/1000)+'K';
+  return n.toString();
+}
+
+function renderResults(artists, countMap, totalTracks, totalArtists) {
+  const showGenre = $('chk-genre').checked;
+  const showPop = $('chk-popularity').checked;
+  const showFollowers = $('chk-followers').checked;
+  const avgPop = artists.length ? Math.round(artists.reduce((s,a)=>s+(a.popularity||0),0)/artists.length) : 0;
+
+  let html = `<div style="font-size:13px;font-family:'DM Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">${selectedPlaylistName}</div>
+  <div class="summary">
+    <div class="metric"><div class="metric-label">Tracks</div><div class="metric-val">${totalTracks}</div></div>
+    <div class="metric"><div class="metric-label">Artists</div><div class="metric-val">${totalArtists}</div></div>
+    <div class="metric"><div class="metric-label">Showing</div><div class="metric-val">${artists.length}</div></div>
+    <div class="metric"><div class="metric-label">Avg pop</div><div class="metric-val">${avgPop}</div></div>
+  </div>`;
+
+  for (const a of artists) {
+    const initials = a.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const imgUrl = a.images?.length ? a.images[a.images.length-1].url : null;
+    const imgHtml = imgUrl ? `<img class="artist-img" src="${imgUrl}" alt="${a.name}" />` : `<div class="artist-img-ph">${initials}</div>`;
+    const trackCount = countMap[a.id]?.count || 0;
+    html += `<div class="artist-card">
+      <div class="artist-header">${imgHtml}<div><div class="artist-name">${a.name}</div><div class="artist-tracks">${trackCount} track${trackCount!==1?'s':''} in playlist</div></div></div>`;
+    if (showGenre && a.genres?.length) {
+      html += `<div class="tags">${a.genres.slice(0,6).map(g=>`<span class="tag">${g}</span>`).join('')}</div>`;
+    }
+    const stats = [];
+    if (showPop) stats.push({ label: 'Popularity', val: a.popularity||0, isBar: true });
+    if (showFollowers && a.followers) stats.push({ label: 'Followers', val: formatFollowers(a.followers.total), isBar: false });
+    if (stats.length) {
+      html += `<div class="stats">`;
+      for (const s of stats) {
+        if (s.isBar) {
+          html += `<div class="stat"><div class="stat-label">${s.label}</div><div class="stat-val">${s.val}</div><div class="pop-bar"><div class="pop-fill" style="width:${s.val}%"></div></div></div>`;
+        } else {
+          html += `<div class="stat"><div class="stat-label">${s.label}</div><div class="stat-val">${s.val}</div></div>`;
+        }
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  $('results').innerHTML = html;
+}
+
+// Init
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const storedToken = sessionStorage.getItem('spotify_token');
+  if (code) {
+    render(`<div class="card auth-section"><p style="color:var(--muted);">Authenticating...</p></div>`);
+    await exchangeCode(code);
+  } else if (storedToken) {
+    token = storedToken;
+    await showMain();
+  } else {
+    showAuth();
+  }
+})();
+</script>
+</body>
+</html>
