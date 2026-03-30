@@ -254,47 +254,65 @@ async function analyzePlaylist() {
   if (!selectedPlaylistId) { showError('Select a playlist first.'); return; }
   setStatus('Loading tracks...');
 
+  // Step 1: load all tracks
   let tracks = [];
-  let endpoint = `https://api.spotify.com/v1/playlists/${selectedPlaylistId}/tracks?limit=50`;
+  let endpoint = 'https://api.spotify.com/v1/playlists/' + selectedPlaylistId + '/tracks?limit=50';
+  let pageNum = 0;
   while (endpoint) {
     const d = await spotifyFetch(endpoint);
-    if (!d) { showError('Failed to load tracks. Try disconnecting and reconnecting.'); setStatus(''); return; }
+    if (!d) { showError('Track fetch returned null — token may be expired. Disconnect and reconnect.'); setStatus(''); return; }
+    if (d.error) { showError('Spotify API error: ' + d.error.message + ' (status ' + d.error.status + ')'); setStatus(''); return; }
     tracks = tracks.concat(d.items || []);
+    pageNum++;
+    setStatus('Loaded ' + tracks.length + ' tracks (page ' + pageNum + ')...');
     endpoint = d.next || null;
   }
 
-  if (!tracks.length) { showError('No tracks found in this playlist.'); setStatus(''); return; }
+  if (!tracks.length) { showError('This playlist appears to have no tracks.'); setStatus(''); return; }
 
+  // Step 2: build artist map
   const artistMap = {};
+  let skipped = 0;
   for (const item of tracks) {
-    if (!item?.track?.artists) continue;
+    if (!item || !item.track || !item.track.artists) { skipped++; continue; }
     for (const a of item.track.artists) {
-      if (!a?.id) continue;
+      if (!a || !a.id) continue;
       if (!artistMap[a.id]) artistMap[a.id] = { id: a.id, name: a.name, count: 0 };
       artistMap[a.id].count++;
     }
   }
 
   const artistIds = Object.keys(artistMap);
-  if (!artistIds.length) { showError('No artists found.'); setStatus(''); return; }
-  setStatus(`${tracks.length} tracks · ${artistIds.length} artists · fetching details...`);
+  if (!artistIds.length) { showError('No artists found. ' + skipped + ' tracks were skipped (local files or null tracks).'); setStatus(''); return; }
+  setStatus(tracks.length + ' tracks, ' + skipped + ' skipped, ' + artistIds.length + ' unique artists — fetching details...');
 
+  // Step 3: fetch artist details in batches of 50
   let artistDetails = [];
   for (let i = 0; i < artistIds.length; i += 50) {
-    const chunk = artistIds.slice(i, i+50);
-    const d = await spotifyFetch(`https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`);
-    if (d?.artists) artistDetails = artistDetails.concat(d.artists);
+    const chunk = artistIds.slice(i, i + 50);
+    const url = 'https://api.spotify.com/v1/artists?ids=' + chunk.join(',');
+    const d = await spotifyFetch(url);
+    if (!d) { showError('Artist fetch returned null.'); setStatus(''); return; }
+    if (d.error) { showError('Artist API error: ' + d.error.message); setStatus(''); return; }
+    if (d.artists) artistDetails = artistDetails.concat(d.artists);
   }
 
+  if (!artistDetails.length) { showError('Artist details came back empty. The token may lack permissions.'); setStatus(''); return; }
+
+  // Step 4: filter and sort
   const genreFilterRaw = $('genreFilter').value.trim().toLowerCase();
-  const genreFilters = genreFilterRaw ? genreFilterRaw.split(',').map(g=>g.trim()).filter(Boolean) : [];
+  const genreFilters = genreFilterRaw ? genreFilterRaw.split(',').map(function(g){ return g.trim(); }).filter(Boolean) : [];
   let filtered = artistDetails.filter(Boolean);
   if (genreFilters.length) {
-    filtered = filtered.filter(a => (a.genres||[]).some(g => genreFilters.some(f => g.toLowerCase().includes(f))));
+    filtered = filtered.filter(function(a) {
+      return (a.genres || []).some(function(g) {
+        return genreFilters.some(function(f) { return g.toLowerCase().includes(f); });
+      });
+    });
   }
-  filtered.sort((a,b) => (artistMap[b.id]?.count||0) - (artistMap[a.id]?.count||0));
-  setStatus('');
-  if (genreFilters.length && !filtered.length) { showError(`No artists matched: "${genreFilterRaw}"`); return; }
+  filtered.sort(function(a, b) { return (artistMap[b.id] ? artistMap[b.id].count : 0) - (artistMap[a.id] ? artistMap[a.id].count : 0); });
+  setStatus('Done — ' + filtered.length + ' artists shown');
+  if (genreFilters.length && !filtered.length) { showError('No artists matched: "' + genreFilterRaw + '"'); return; }
   renderResults(filtered, artistMap, tracks.length, artistDetails.length);
 }
 
