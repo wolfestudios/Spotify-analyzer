@@ -115,7 +115,7 @@
 <script>
 const CLIENT_ID = 'fe057f429cec42f3a1913d4487457ee7';
 const REDIRECT_URI = 'https://wolfestudios.github.io/Spotify-analyzer/';
-const SCOPES = 'playlist-read-private';
+const SCOPES = '';
 
 let token = null;
 let selectedPlaylistId = null;
@@ -144,7 +144,6 @@ async function login() {
     client_id: CLIENT_ID,
     response_type: 'code',
     redirect_uri: REDIRECT_URI,
-    scope: SCOPES,
     code_challenge_method: 'S256',
     code_challenge: challenge
   });
