@@ -114,7 +114,7 @@ async function login() {
     client_id: CLIENT_ID,
     response_type: 'code',
     redirect_uri: REDIRECT_URI,
-    scope: 'playlist-read-private playlist-read-collaborative',
+
     code_challenge_method: 'S256',
     code_challenge: challenge
   });
@@ -254,30 +254,32 @@ async function analyzePlaylist() {
   if (!selectedPlaylistId) { showError('Select a playlist first.'); return; }
   setStatus('Loading tracks...');
 
-  // Step 1: load all tracks
+  // Step 1: load all tracks using public endpoint (no user scope needed)
   let tracks = [];
-  const firstUrl = 'https://api.spotify.com/v1/playlists/' + selectedPlaylistId + '/tracks?limit=50';
-  const firstResp = await spotifyFetch(firstUrl);
-  if (!firstResp) { showError('Track fetch returned null. Try disconnecting and reconnecting.'); setStatus(''); return; }
-  if (firstResp.error) { showError('Spotify error: ' + firstResp.error.message + ' (status ' + firstResp.error.status + ')'); setStatus(''); return; }
+  const firstUrl = 'https://api.spotify.com/v1/playlists/' + selectedPlaylistId + '?fields=tracks(items(track(name,artists(id,name))),next,total)';
+  setStatus('Fetching playlist info...');
+  const playlistResp = await spotifyFetch(firstUrl);
+  if (!playlistResp) { showError('Playlist fetch returned null. Try disconnecting and reconnecting.'); setStatus(''); return; }
+  if (playlistResp.error) { showError('Spotify error: ' + playlistResp.error.message + ' (status ' + playlistResp.error.status + ')'); setStatus(''); return; }
 
-  // Show raw debug info
-  const debugKeys = Object.keys(firstResp).join(', ');
-  const itemCount = firstResp.items ? firstResp.items.length : 'NO ITEMS KEY';
-  const total = firstResp.total !== undefined ? firstResp.total : 'NO TOTAL';
-  setStatus('DEBUG — keys: ' + debugKeys + ' | items: ' + itemCount + ' | total: ' + total);
-  await new Promise(r => setTimeout(r, 3000)); // pause 3s so you can read it
+  const firstPage = playlistResp.tracks;
+  if (!firstPage) { showError('No tracks object in response. Keys: ' + Object.keys(playlistResp).join(', ')); setStatus(''); return; }
 
-  tracks = tracks.concat(firstResp.items || []);
-  let endpoint = firstResp.next || null;
+  tracks = tracks.concat(firstPage.items || []);
+  let endpoint = firstPage.next || null;
+  let pageNum = 1;
+  setStatus('Loaded ' + tracks.length + ' of ' + (firstPage.total || '?') + ' tracks...');
+
   while (endpoint) {
     const d = await spotifyFetch(endpoint);
     if (!d || d.error) break;
     tracks = tracks.concat(d.items || []);
+    pageNum++;
+    setStatus('Loaded ' + tracks.length + ' of ' + (firstPage.total || '?') + ' tracks...');
     endpoint = d.next || null;
   }
 
-  if (!tracks.length) { showError('No tracks found. DEBUG: total=' + total + ', keys=' + debugKeys); setStatus(''); return; }
+  if (!tracks.length) { showError('No tracks found in this playlist.'); setStatus(''); return; }
 
   // Step 2: build artist map
   const artistMap = {};
